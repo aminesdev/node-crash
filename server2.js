@@ -1,4 +1,5 @@
 import { createServer } from "http";
+
 const PORT = process.env.PORT || 8000;
 
 const users = [
@@ -19,14 +20,14 @@ const jsonMiddleware = (req, res, next) => {
     next();
 };
 
-// Route handler for GET /api/users
+// GET /api/users
 const getUsersHandler = (req, res) => {
     res.end(JSON.stringify(users));
 };
 
-// Route handler for GET /api/users/:id
+// GET /api/users/:id
 const getUserByIdHandler = (req, res) => {
-    const id = req.url.split("/")[3]; // /api/users/2 → ["", "api", "users", "2"]
+    const id = req.url.split("/")[3].split("?")[0];
     const user = users.find((user) => user.id === parseInt(id));
 
     if (user) {
@@ -37,19 +38,27 @@ const getUserByIdHandler = (req, res) => {
     }
 };
 
-// Not found handler
+// POST /api/users
+const createUserHandler = (req, res) => {
+    let body = "";
+    req.on("data", (chunk) => {
+        body += chunk.toString();
+    });
+    req.on("end", () => {
+        const newUser = JSON.parse(body);
+        users.push(newUser);
+        res.statusCode = 201;
+        res.end(JSON.stringify(newUser));
+    });
+};
+
+// Not found
 const notFoundHandler = (req, res) => {
     res.statusCode = 404;
     res.end(JSON.stringify({ message: "Route not found" }));
 };
-//Route handler for POST /api/users
-const createUserHandler(req, res) => {
-    let body = '';
-    req.on('data', (chunk) => {
-        body += chunk.toString();
-    })
-}
 
+// Server
 const server = createServer((req, res) => {
     logger(req, res, () => {
         jsonMiddleware(req, res, () => {
@@ -60,6 +69,8 @@ const server = createServer((req, res) => {
                 req.method === "GET"
             ) {
                 getUserByIdHandler(req, res);
+            } else if (req.url === "/api/users" && req.method === "POST") {
+                createUserHandler(req, res);
             } else {
                 notFoundHandler(req, res);
             }
